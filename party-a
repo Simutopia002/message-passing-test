@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Party A</title>
+</head>
+<body>
+  <h1>Party A</h1>
+  <div>
+    <label for="partyBId">Party B ID:</label>
+    <input type="text" id="partyBId">
+  </div>
+  <div>
+    <label for="message">Message:</label>
+    <input type="text" id="message">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script>
+    var peer = new Peer();
+    var partyBIdInput = document.getElementById('partyBId');
+
+    peer.on('open', function(id) {
+      console.log('Party A ID:', id);
+    });
+
+    function sendMessage() {
+      var messageInput = document.getElementById('message');
+      var message = messageInput.value;
+      var conn = peer.connect(partyBIdInput.value);
+      conn.on('open', function(){
+        conn.send(message);
+      });
+      messageInput.value = '';
+    }
+
+    peer.on('connection', function(conn) {
+      conn.on('data', function(data){
+        alert('Message from Party B: ' + data);
+      });
+    });
+  </script>
+</body>
+</html>
