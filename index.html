@@ -3,114 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peer-to-Peer Messaging</title>
+    <title>PeerJS Text Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
-        #container {
-            max-width: 600px;
-            margin: 20px auto;
             padding: 20px;
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
-        #messages {
-            height: 300px;
-            overflow-y: scroll;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        #input {
-            width: calc(100% - 22px);
-            margin-top: 10px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        #sendBtn {
+        textarea {
             width: 100%;
-            margin-top: 10px;
-            padding: 10px;
+            height: 200px;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
             background-color: #007bff;
             color: #fff;
             border: none;
-            border-radius: 5px;
             cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <div id="messages"></div>
-        <input type="text" id="input" placeholder="Type a message...">
-        <button id="sendBtn">Send</button>
+    <h1>PeerJS Text Chat</h1>
+    <div>
+        <label for="peer-id">Enter Peer ID:</label>
+        <input type="text" id="peer-id">
+        <button onclick="connectToPeer()">Connect</button>
+    </div>
+    <div>
+        <textarea id="incoming-messages" readonly></textarea>
+        <input type="text" id="outgoing-message">
+        <button onclick="sendMessage()">Send</button>
     </div>
 
     <script>
-        const localConnection = new RTCPeerConnection();
-        const remoteConnection = new RTCPeerConnection();
+        const peer = new Peer(); // Initialize PeerJS
 
-        // Set up local connection's ICE candidates
-        localConnection.onicecandidate = event => {
-            if (event.candidate) {
-                remoteConnection.addIceCandidate(event.candidate);
-            }
-        };
+        let conn = null;
 
-        // Set up remote connection's ICE candidates
-        remoteConnection.onicecandidate = event => {
-            if (event.candidate) {
-                localConnection.addIceCandidate(event.candidate);
-            }
-        };
-
-        // Set up remote connection's data channel
-        let receiveChannel = null;
-        remoteConnection.ondatachannel = event => {
-            receiveChannel = event.channel;
-            receiveChannel.onmessage = event => {
-                showMessage(event.data, 'remote');
-            };
-        };
-
-        // Create data channel for local connection
-        const sendChannel = localConnection.createDataChannel('sendChannel');
-        sendChannel.onopen = () => {
-            document.getElementById('sendBtn').disabled = false;
-        };
-
-        // Set up event listener for Send button
-        document.getElementById('sendBtn').addEventListener('click', () => {
-            const messageInput = document.getElementById('input');
-            const message = messageInput.value;
-            showMessage(message, 'local');
-            sendChannel.send(message);
-            messageInput.value = '';
+        // Listen for the peer connection
+        peer.on('open', function(id) {
+            console.log('My peer ID is: ' + id);
         });
 
-        // Display messages in the UI
-        function showMessage(message, sender) {
-            const messagesDiv = document.getElementById('messages');
-            const messageP = document.createElement('p');
-            messageP.textContent = `${sender === 'local' ? 'You: ' : 'Remote: '}${message}`;
-            messagesDiv.appendChild(messageP);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        // Function to connect to another peer
+        function connectToPeer() {
+            const peerId = document.getElementById('peer-id').value;
+
+            conn = peer.connect(peerId);
+
+            conn.on('open', function() {
+                console.log('Connected to ' + peerId);
+                console.log('Connection established!');
+                conn.on('data', function(data) {
+                    displayIncomingMessage(data);
+                });
+            });
+
+            conn.on('error', function(err) {
+                console.log(err);
+            });
         }
 
-        // Create offer to start the connection
-        localConnection.createOffer()
-            .then(offer => localConnection.setLocalDescription(offer))
-            .then(() => remoteConnection.setRemoteDescription(localConnection.localDescription))
-            .then(() => remoteConnection.createAnswer())
-            .then(answer => remoteConnection.setLocalDescription(answer))
-            .then(() => localConnection.setRemoteDescription(remoteConnection.localDescription))
-            .catch(error => console.error('Error setting up peer connection:', error));
+        // Function to send a message
+        function sendMessage() {
+            if (conn) {
+                const message = document.getElementById('outgoing-message').value;
+                conn.send(message);
+                displayOutgoingMessage(message);
+                document.getElementById('outgoing-message').value = '';
+            } else {
+                console.log('No connection established yet.');
+            }
+        }
+
+        // Function to display incoming messages
+        function displayIncomingMessage(message) {
+            const incomingMessages = document.getElementById('incoming-messages');
+            incomingMessages.value += 'Peer: ' + message + '\n';
+        }
+
+        // Function to display outgoing messages
+        function displayOutgoingMessage(message) {
+            const incomingMessages = document.getElementById('incoming-messages');
+            incomingMessages.value += 'You: ' + message + '\n';
+        }
     </script>
 </body>
 </html>
